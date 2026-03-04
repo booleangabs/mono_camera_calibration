@@ -10,25 +10,37 @@ import time
 
 def parse_args():
     parser = argparse.ArgumentParser(
-        description="Webcam stream with interval-based image capture."
+        description="Webcam stream with interval-based image capture.",
     )
     parser.add_argument(
         "--output",
         type=str,
         default="output",
-        help="Directory to save captured imagesimages. Created on demand, if non-existent."
+        help="Directory to save captured imagesimages. Created on demand, if non-existent",
     )
     parser.add_argument(
         "--camera",
         type=int,
         default=0,
-        help="Camera index (default: 0)"
+        help="Camera index (default: 0)",
     )
     parser.add_argument(
         "--interval",
         type=float,
         required=True,
-        help="Capture interval in seconds"
+        help="Capture interval in seconds",
+    )
+    parser.add_argument(
+        "--rows",
+        type=int,
+        required=True,
+        help="Number of inner checkerboard corners per row",
+    )
+    parser.add_argument(
+        "--cols",
+        type=int,
+        required=True,
+        help="Number of inner checkerboard corners per column",
     )
     return parser.parse_args()
 
@@ -88,6 +100,9 @@ def main():
     frame_count = 0
     last_capture_time = 0
 
+    checkerboard_size = (args.cols, args.rows)
+
+    logger.info(f"Checkerboard layout (cols, rows): {checkerboard_size}")
     logger.info("Press 's' to start/stop capturing.")
     logger.info("Press 'q' to quit.")
 
@@ -97,11 +112,35 @@ def main():
             logger.error("Failed to grab frame.")
             break
 
-        cv2.imshow("Webcam Stream", frame)
+        gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+
+        found, corners = cv2.findChessboardCorners(
+            gray,
+            checkerboard_size,
+            cv2.CALIB_CB_ADAPTIVE_THRESH \
+                + cv2.CALIB_CB_NORMALIZE_IMAGE \
+                + cv2.CALIB_CB_FAST_CHECK,
+        )
+
+        display_frame = frame.copy()
+
+        if found:
+            cv2.cornerSubPix(
+                gray,
+                corners,
+                (11, 11),
+                (-1, -1),
+                criteria=(cv2.TERM_CRITERIA_EPS +
+                          cv2.TERM_CRITERIA_MAX_ITER, 30, 0.001)
+            )
+            cv2.drawChessboardCorners(display_frame,
+                                      checkerboard_size,
+                                      corners,
+                                      found)
 
         current_time = time.time()
 
-        if capturing and (current_time - last_capture_time >= args.interval):
+        if capturing and found and (current_time - last_capture_time >= args.interval):
             filename = f"{frame_count:03d}.png"
             filepath = os.path.join(args.output, filename)
             cv2.imwrite(filepath, frame)
@@ -109,13 +148,36 @@ def main():
             frame_count += 1
             last_capture_time = current_time
 
+        # Overlay information
+        status_text = "CAPTURING" if capturing else "IDLE"
+        cv2.putText(
+            display_frame,
+            f"Status: {status_text}",
+            (20, 30),
+            cv2.FONT_HERSHEY_SIMPLEX,
+            0.8,
+            (0, 255, 0) if capturing else (0, 0, 255),
+            2,
+        )
+
+        cv2.putText(
+            display_frame,
+            f"Saved: {frame_count}",
+            (20, 65),
+            cv2.FONT_HERSHEY_SIMPLEX,
+            0.8,
+            (255, 255, 0),
+            2,
+        )
+
+        cv2.imshow("Checkerboard Capture", display_frame)
+
         key = cv2.waitKey(1) & 0xFF
 
         if key == ord('s'):
             capturing = not capturing
             state = "STARTED" if capturing else "STOPPED"
             logger.info(f"Capture {state}")
-
             if capturing:
                 last_capture_time = time.time()
 
