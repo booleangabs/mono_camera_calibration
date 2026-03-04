@@ -10,7 +10,7 @@ import time
 
 def parse_args():
     parser = argparse.ArgumentParser(
-        description="Webcam stream with interval-based image capture.",
+        description="Camera module stream with interval-based image capture.",
     )
     parser.add_argument(
         "--output",

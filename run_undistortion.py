@@ -8,12 +8,12 @@ from glob import glob
 
 def parse_args():
     parser = argparse.ArgumentParser(
-        description="Undistort images or webcam stream using calibration parameters."
+        description="Undistort images or camera module stream using calibration parameters."
     )
     parser.add_argument("--params", type=str, required=True,
                         help="Path to calibration .npz file")
     parser.add_argument("--input", type=str,
-                        help="Path to image or directory (omit for webcam)")
+                        help="Path to image or directory (omit for camera module)")
     parser.add_argument("--output", type=str, default="undistorted",
                         help="Output directory")
     parser.add_argument("--crop", action="store_true",
@@ -48,11 +48,11 @@ def main():
     # Important part 1: loading parameters *****
     camera_matrix, dist_coeffs = load_params(args.params)
 
-    # Webcam mode
+    # camera module mode
     if args.input is None:
         cap = cv2.VideoCapture(0)
         if not cap.isOpened():
-            print("Could not open webcam.")
+            print("Could not open camera module.")
             sys.exit(1)
 
         print("Press 'q' to quit.")
